@@ -2,13 +2,19 @@ import { getApps, initializeApp } from 'firebase/app'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyC_KhGpNbY5zNT4JR5M3Mv61ns3f6HtcUo',
-  authDomain: 'chitti-koottam.firebaseapp.com',
-  projectId: 'chitti-koottam',
-  storageBucket: 'chitti-koottam.firebasestorage.app',
-  messagingSenderId: '991137223597',
-  appId: '1:991137223597:web:b9a0896523f88cd4368724',
-  measurementId: 'G-LTVRZB3VB8',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+}
+
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error(
+    'Missing Firebase config. Copy .env.example to .env.local and fill in your Firebase project values.',
+  )
 }
 
 export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
