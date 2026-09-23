@@ -119,13 +119,13 @@
    digit blocks are plain CSS custom properties. */
 .chitti-flip-clock {
   --fcc-flip-duration: 0.45s;
-  --fcc-spacing: 6px;
-  --fcc-digit-block-width: 27px;
-  --fcc-digit-block-height: 36px;
+  --fcc-spacing: 7px;
+  --fcc-digit-block-width: 29px;
+  --fcc-digit-block-height: 39px;
   --fcc-digit-block-radius: 6px;
-  --fcc-digit-block-spacing: 3px;
-  --fcc-digit-font-size: 15px;
-  --fcc-label-font-size: 8px;
+  --fcc-digit-block-spacing: 5px;
+  --fcc-digit-font-size: 16px;
+  --fcc-label-font-size: 9px;
   --fcc-label-color: var(--color-ink-400);
   --fcc-background: white;
   --fcc-digit-color: var(--color-ink-900);
@@ -153,7 +153,7 @@
   --fcc-digit-block-width: 29px;
   --fcc-digit-block-height: 34px;
   --fcc-digit-block-radius: 5px;
-  --fcc-digit-block-spacing: -5px;
+  --fcc-digit-block-spacing: 4px;
   --fcc-digit-font-size: 17px;
   --fcc-label-font-size: 7px;
   --fcc-label-color: var(--color-ink-400);

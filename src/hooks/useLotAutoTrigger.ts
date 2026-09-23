@@ -22,8 +22,6 @@ export interface LotDrawState {
    * `currentCycle` itself has moved on to the next one.
    */
   cycleNumber: number | null
-  /** True while this tab's own `prepareLot` call is in flight. */
-  triggering: boolean
   /**
    * True only when the draw was already decided before this hook ever saw
    * the cycle (e.g. the page loaded after the fact) — the caller should jump
@@ -31,8 +29,6 @@ export interface LotDrawState {
    * that's already known.
    */
   skipSpin: boolean
-  /** Manually ensure the lot has been run for the current cycle (for an admin "run early" action). */
-  runNow: () => Promise<void>
   /**
    * Drop the latched reveal once the caller is done showing it (e.g. the
    * admin clicked "Continue" after confirming). Until this is called, the
@@ -70,7 +66,6 @@ export function useLotAutoTrigger(
 ): LotDrawState {
   const countdown = useCountdown(currentCycle?.status === 'active' ? currentCycle.auctionAt : undefined)
   const triggeredForCycle = useRef<string | null>(null)
-  const [triggering, setTriggering] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const decidedOnFirstSight = useRef(new Map<string, boolean>())
@@ -83,11 +78,13 @@ export function useLotAutoTrigger(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCycle?.id, currentCycle?.winnerId])
 
-  async function runNow(): Promise<void> {
+  // Ensures the lot has actually been run for the current cycle — internal
+  // only now that there's no manual "Run Lot Now" admin action; the effect
+  // below is the sole caller, firing the moment the countdown crosses zero.
+  async function triggerLot(): Promise<void> {
     if (!chittiId || !currentCycle) return
     if (triggeredForCycle.current === currentCycle.id) return
     triggeredForCycle.current = currentCycle.id
-    setTriggering(true)
     setError(null)
     try {
       const result = await prepareLot(chittiId, cycleIdFor(currentCycle.cycleNumber))
@@ -100,8 +97,6 @@ export function useLotAutoTrigger(
     } catch {
       triggeredForCycle.current = null
       setError('Could not run the lot. Please try again.')
-    } finally {
-      setTriggering(false)
     }
   }
 
@@ -109,7 +104,7 @@ export function useLotAutoTrigger(
     if (!chittiId || !currentCycle) return
     if (currentCycle.status !== 'active') return
     if (!countdown?.isPast) return
-    void runNow()
+    void triggerLot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chittiId, currentCycle?.id, currentCycle?.status, countdown?.isPast])
 
@@ -155,9 +150,7 @@ export function useLotAutoTrigger(
     eligibleMembers,
     winner,
     cycleNumber,
-    triggering,
     skipSpin,
-    runNow,
     acknowledge,
     error,
   }

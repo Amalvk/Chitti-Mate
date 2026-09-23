@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Dices, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { useChittiOutletContext } from '@/context/chittiOutletContext'
 import { EligibilityList } from '@/components/auction/EligibilityList'
 import { LotAnimation } from '@/components/auction/LotAnimation'
-import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useLotAutoTrigger } from '@/hooks/useLotAutoTrigger'
 import { confirmWinner, cycleIdFor } from '@/services/chitti/lot'
@@ -28,19 +27,13 @@ export function Lot() {
   const { chitti, members, currentCycle, eligibility } = useChittiOutletContext()
   const navigate = useNavigate()
   const draw = useLotAutoTrigger(chitti.id, currentCycle, members, eligibility)
-  // A manual "Run Lot Now" click should open the modal immediately (even to
-  // show "no eligible members"), not wait for the countdown/winner to make
-  // `draw.open` true on its own. `dismissed` lets an admin close that "no
-  // eligible members" state without it auto-reopening on every render —
-  // `draw.open` itself stays true for as long as the countdown is past.
-  const [manuallyOpened, setManuallyOpened] = useState(false)
+  // Lets an admin close the "no eligible members" dead end without it
+  // auto-reopening on every render — `draw.open` itself stays true for as
+  // long as the countdown is past.
   const [dismissed, setDismissed] = useState(false)
   const confirmedForCycle = useRef<number | null>(null)
 
-  useEffect(() => {
-    setManuallyOpened(false)
-    setDismissed(false)
-  }, [currentCycle?.id])
+  useEffect(() => setDismissed(false), [currentCycle?.id])
 
   // A winner being decided is always worth surfacing, even if this admin
   // already dismissed an earlier "no eligible members" result for this same
@@ -85,12 +78,7 @@ export function Lot() {
   }, [chitti.id, currentCycle, draw.winner])
 
   const noActiveCycle = chitti.status === 'completed' || !currentCycle
-  const open = (draw.open && !dismissed) || manuallyOpened
-
-  async function handleRunLotNow() {
-    setManuallyOpened(true)
-    await draw.runNow()
-  }
+  const open = draw.open && !dismissed
 
   function handleClose() {
     draw.acknowledge()
@@ -98,7 +86,6 @@ export function Lot() {
       navigate(`/admin/chittis/${chitti.id}`)
       return
     }
-    setManuallyOpened(false)
     setDismissed(true)
   }
 
@@ -113,19 +100,7 @@ export function Lot() {
       ) : (
         <>
           <h2 className="text-lg font-bold text-ink-900 dark:text-ink-50">Cycle {chitti.currentCycle} Lot</h2>
-
           <EligibilityList eligibility={eligibility} />
-
-          {!open && (
-            <Button
-              size="lg"
-              icon={<Dices className="size-4" />}
-              loading={draw.triggering}
-              onClick={() => void handleRunLotNow()}
-            >
-              Run Lot Now
-            </Button>
-          )}
         </>
       )}
 
