@@ -1,7 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Cycle, EligibilityResult, Member } from '@/types'
-import { prepareLot, cycleIdFor } from '@/services/chitti/lot'
+import { prepareLot, confirmWinner, cycleIdFor } from '@/services/chitti/lot'
 import { useCountdown } from './useCountdown'
+
+// This tab's own `prepareLot` write can be echoed back through its local
+// Firestore cache (making the live winner go non-null) before that write is
+// durably committed server-side. `confirmWinner` always reads the server, so
+// it can land in that narrow window and see a still-null `winnerId`. The
+// retry budget needs to comfortably outlast real-world write latency — a
+// short budget is routinely too short over anything but a fast local
+// connection, surfacing a false "could not finalize" error even though the
+// very next retry (or a page refresh) would have shown it as finalized.
+const CONFIRM_RETRY_DELAYS_MS = [400, 800, 1200, 1800, 2500, 3500, 5000]
+
+async function confirmWithRetry(chittiId: string, cycleId: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await confirmWinner(chittiId, cycleId)
+      return
+    } catch (err) {
+      if (attempt >= CONFIRM_RETRY_DELAYS_MS.length) throw err
+      await new Promise((resolve) => setTimeout(resolve, CONFIRM_RETRY_DELAYS_MS[attempt]))
+    }
+  }
+}
 
 interface RevealedDraw {
   cycleId: string
@@ -39,6 +61,8 @@ export interface LotDrawState {
   acknowledge: () => void
   /** Set when `prepareLot` itself threw (network/permission failure) — never set for the ordinary "no eligible members" outcome. */
   error: string | null
+  /** Set when `confirmWinner` still failed after exhausting its retry budget. Caller decides whether/how to surface it. */
+  confirmError: string | null
 }
 
 /**
@@ -137,6 +161,26 @@ export function useLotAutoTrigger(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCycle?.id, liveWinner])
 
+  // Once the lot picks a winner, that IS the winner — no separate admin
+  // confirmation step. This fires the instant a winner is known from EITHER
+  // the admin's Lot page or an external viewer's link, so history and the
+  // next cycle update promptly regardless of which one happened to be open;
+  // `confirmWinner` itself is idempotent, so every caller racing it is safe.
+  // Guarded so it only ever runs once per cycle per hook instance.
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+  const confirmedForCycle = useRef<number | null>(null)
+  useEffect(() => {
+    if (!chittiId || !currentCycle || !liveWinner) return
+    if (confirmedForCycle.current === currentCycle.cycleNumber) return
+    confirmedForCycle.current = currentCycle.cycleNumber
+    const cycleNumber = currentCycle.cycleNumber
+
+    confirmWithRetry(chittiId, cycleIdFor(cycleNumber)).catch(() => {
+      confirmedForCycle.current = null
+      setConfirmError('Could not finalize the winner. Please try again.')
+    })
+  }, [chittiId, currentCycle, liveWinner])
+
   function acknowledge() {
     setRevealed(null)
   }
@@ -167,5 +211,6 @@ export function useLotAutoTrigger(
     skipSpin,
     acknowledge,
     error,
+    confirmError,
   }
 }

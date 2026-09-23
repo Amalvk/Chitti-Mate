@@ -9,7 +9,7 @@ import { Confetti } from './Confetti'
 type Phase = 'preparing' | 'checking' | 'roster' | 'selecting' | 'locking' | 'revealed'
 
 /** Fast enough that names blur past rather than read as a slow slideshow. */
-const SHUFFLE_INTERVAL_MS = 55
+const SHUFFLE_INTERVAL_MS = 20
 /** Decelerating lock-in run once a winner is known, before settling on their name — long enough to feel like a real draw, not a coin flip. */
 const LOCK_IN_DELAYS = [100, 130, 170, 220, 280, 360, 460, 580, 720]
 const PREPARING_MS = 1500
@@ -40,6 +40,14 @@ interface LotAnimationProps {
   /** Label for the single action shown after the reveal. Defaults to "Continue". */
   closeLabel?: string
   onClose: () => void
+  /**
+   * Admin-only escape hatches shown on the "no eligible members" dead end —
+   * omitted for the public viewer, who can't act on either. Navigating away
+   * and back re-triggers the lot automatically (a fresh mount re-attempts
+   * `prepareLot`), so these don't need their own "retry" affordance.
+   */
+  onManagePayments?: () => void
+  onManageMembers?: () => void
 }
 
 export function LotAnimation({
@@ -52,6 +60,8 @@ export function LotAnimation({
   skipSpin = false,
   closeLabel = 'Continue',
   onClose,
+  onManagePayments,
+  onManageMembers,
 }: LotAnimationProps) {
   const [phase, setPhase] = useState<Phase>('preparing')
   const [spinName, setSpinName] = useState('')
@@ -193,7 +203,21 @@ export function LotAnimation({
                 No eligible members. All active members either have pending payments or have
                 already won a previous cycle.
               </p>
-              <Button variant="secondary" onClick={onClose} className="mt-2">
+              {(onManagePayments || onManageMembers) && (
+                <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                  {onManagePayments && (
+                    <Button variant="secondary" onClick={onManagePayments}>
+                      Manage Payments
+                    </Button>
+                  )}
+                  {onManageMembers && (
+                    <Button variant="secondary" onClick={onManageMembers}>
+                      Manage Members
+                    </Button>
+                  )}
+                </div>
+              )}
+              <Button variant="secondary" onClick={onClose} className="mt-1">
                 Close
               </Button>
             </motion.div>

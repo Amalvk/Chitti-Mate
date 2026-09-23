@@ -11,29 +11,67 @@ import { Card } from '@/components/ui/Card'
 import { LotAnimation } from '@/components/auction/LotAnimation'
 import { useLotAutoTrigger } from '@/hooks/useLotAutoTrigger'
 
+/**
+ * Identifies a specific decided-or-not outcome for a cycle (not just the
+ * cycle itself), so dismissing a "no eligible members" dead end doesn't also
+ * suppress the real winner reveal once eligibility gets fixed later for that
+ * same cycle.
+ */
+function drawOutcomeId(cycleId: string, winnerId: string | null): string {
+  return `${cycleId}:${winnerId ?? 'none'}`
+}
+
+function readDismissedOutcome(chittiId: string): string | null {
+  try {
+    return localStorage.getItem(`chitty-mate:dismissed-draw:${chittiId}`)
+  } catch {
+    return null
+  }
+}
+
+function writeDismissedOutcome(chittiId: string, outcome: string): void {
+  try {
+    localStorage.setItem(`chitty-mate:dismissed-draw:${chittiId}`, outcome)
+  } catch {
+    // localStorage unavailable (private mode, etc.) — falls back to only
+    // suppressing the overlay for the rest of this tab's session.
+  }
+}
+
 export function PublicChitti() {
   const { chitti, members, cycles, currentCycle, payments, eligibility } = useChittiOutletContext()
   const activeMembers = members.filter((m) => m.status === 'active')
   const completedCycles = chitti.currentCycle - 1
 
-  // Members watching this page see the same live draw the admin sees. This
-  // page can help trigger the draw itself (safe: `prepareLot` is idempotent)
-  // but never finalizes the cycle — only the admin's Lot page calls
-  // `confirmWinner`, which happens automatically there the instant a winner
-  // is picked.
+  // Members watching this page see the same live draw the admin sees, and
+  // can trigger AND finalize it themselves (both safe/idempotent — see
+  // useLotAutoTrigger) — so history and the next cycle update promptly
+  // whether an admin or an external viewer happened to have this open when
+  // the winner was decided.
   const draw = useLotAutoTrigger(chitti.id, currentCycle, members, eligibility)
-  const [dismissed, setDismissed] = useState(false)
-  useEffect(() => setDismissed(false), [currentCycle?.id])
-  // A winner being decided is always worth surfacing, even if this viewer
-  // already dismissed an earlier "no eligible members" result for this same
-  // cycle (that dead end and a real decision share the same cycle id).
+
+  // A viewer who already saw and closed this exact outcome shouldn't have it
+  // block the page again on every refresh — they should land straight on the
+  // regular view (history, next countdown, etc). Persisted so it survives a
+  // reload, unlike plain component state; re-keyed automatically the moment
+  // the outcome for this cycle actually changes (e.g. a real winner replacing
+  // an earlier "no eligible members" dead end).
+  const currentOutcome = currentCycle ? drawOutcomeId(currentCycle.id, currentCycle.winnerId) : null
+  const [dismissed, setDismissed] = useState(
+    () => currentOutcome !== null && readDismissedOutcome(chitti.id) === currentOutcome,
+  )
   useEffect(() => {
-    if (draw.winner) setDismissed(false)
-  }, [draw.winner])
+    setDismissed(currentOutcome !== null && readDismissedOutcome(chitti.id) === currentOutcome)
+  }, [chitti.id, currentOutcome])
   // Don't leave the overlay stuck shuffling forever if prepareLot failed.
   useEffect(() => {
     if (draw.error) setDismissed(true)
   }, [draw.error])
+
+  function handleDismissDraw() {
+    setDismissed(true)
+    if (currentOutcome) writeDismissedOutcome(chitti.id, currentOutcome)
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,7 +116,7 @@ export function PublicChitti() {
           winner={draw.winner}
           skipSpin={draw.skipSpin}
           closeLabel="Close"
-          onClose={() => setDismissed(true)}
+          onClose={handleDismissDraw}
         />
       )}
     </div>

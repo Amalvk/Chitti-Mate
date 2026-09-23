@@ -36,13 +36,13 @@ export async function prepareLot(chittiId: string, cycleId: string): Promise<Pre
   if (!cycle) throw new Error('Cycle not found')
 
   if (cycle.winnerId) {
-    const eligibleMembers = getEligibility(allMembers, payments, cycle)
+    const eligibleMembers = getEligibility(allMembers, payments)
       .filter((r) => r.eligible)
       .map((r) => r.member)
     return { status: 'ready', winnerId: cycle.winnerId, eligibleMembers, allMembers }
   }
 
-  const eligibility = getEligibility(allMembers, payments, cycle)
+  const eligibility = getEligibility(allMembers, payments)
   const eligibleMembers = eligibility.filter((r) => r.eligible).map((r) => r.member)
 
   if (eligibleMembers.length === 0) {

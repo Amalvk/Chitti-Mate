@@ -23,7 +23,7 @@ const initialValues: CreateChittiFormValues = {
   duration: 'monthly',
   startDate: todayDateInputValue(),
   selectionMethod: 'lot',
-  auctionDate: '',
+  auctionDate: todayDateInputValue(),
   auctionTime: '',
 }
 

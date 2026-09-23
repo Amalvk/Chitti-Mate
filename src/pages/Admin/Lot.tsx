@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { ShieldCheck } from 'lucide-react'
@@ -7,29 +7,6 @@ import { EligibilityList } from '@/components/auction/EligibilityList'
 import { LotAnimation } from '@/components/auction/LotAnimation'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useLotAutoTrigger } from '@/hooks/useLotAutoTrigger'
-import { confirmWinner, cycleIdFor } from '@/services/chitti/lot'
-
-// This tab's own `prepareLot` write can be echoed back through its local
-// Firestore cache (making `draw.winner` go non-null) before that write is
-// durably committed server-side. `confirmWinner` always reads the server, so
-// it can land in that narrow window and see a still-null `winnerId`. The
-// retry budget needs to comfortably outlast real-world write latency —
-// 2.8s (the old budget) was routinely too short over anything but a fast
-// local connection, surfacing a false "could not finalize" error even though
-// the very next retry (or a page refresh) would have shown it as finalized.
-const RETRY_DELAYS_MS = [400, 800, 1200, 1800, 2500, 3500, 5000]
-
-async function confirmWithRetry(chittiId: string, cycleId: string): Promise<void> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await confirmWinner(chittiId, cycleId)
-      return
-    } catch (err) {
-      if (attempt >= RETRY_DELAYS_MS.length) throw err
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
-    }
-  }
-}
 
 export function Lot() {
   const { chitti, members, currentCycle, eligibility } = useChittiOutletContext()
@@ -39,7 +16,6 @@ export function Lot() {
   // auto-reopening on every render — `draw.open` itself stays true for as
   // long as the countdown is past.
   const [dismissed, setDismissed] = useState(false)
-  const confirmedForCycle = useRef<number | null>(null)
 
   useEffect(() => setDismissed(false), [currentCycle?.id])
 
@@ -59,31 +35,13 @@ export function Lot() {
     }
   }, [draw.error])
 
-  // Once the lot picks a winner, that IS the winner — no separate admin
-  // confirmation step. This fires the instant a winner is known, in parallel
-  // with the reveal animation still playing out, so by the time the admin
-  // sees the celebration the cycle has (almost always) already been
-  // finalized underneath it. Guarded so it only ever runs once per cycle.
-  //
-  // `draw.winner` can turn non-null from THIS tab's own optimistic local
-  // cache the moment `prepareLot`'s transaction is staged, slightly before
-  // that write is durably committed server-side. `confirmWinner` runs its
-  // own transaction, which always reads the server (never the local cache)
-  // — so calling it in that narrow window can read a still-null `winnerId`
-  // and fail with "No winner to confirm". Retrying a few times comfortably
-  // outlasts that window without needing any UI-visible retry affordance
-  // now that there's no manual Confirm button.
+  // `confirmWinner` itself (the finalize step) is handled inside
+  // useLotAutoTrigger now, so both this page and the public chitti page
+  // finalize the moment either one observes the winner. Just surface a
+  // failure here since the admin has somewhere useful to retry from.
   useEffect(() => {
-    if (!currentCycle || !draw.winner) return
-    if (confirmedForCycle.current === currentCycle.cycleNumber) return
-    confirmedForCycle.current = currentCycle.cycleNumber
-    const cycleNumber = currentCycle.cycleNumber
-
-    confirmWithRetry(chitti.id, cycleIdFor(cycleNumber)).catch(() => {
-      confirmedForCycle.current = null
-      toast.error('Could not finalize the winner. Please try again.')
-    })
-  }, [chitti.id, currentCycle, draw.winner])
+    if (draw.confirmError) toast.error(draw.confirmError)
+  }, [draw.confirmError])
 
   const noActiveCycle = chitti.status === 'completed' || !currentCycle
   const open = draw.open && !dismissed
@@ -123,6 +81,8 @@ export function Lot() {
           skipSpin={draw.skipSpin}
           closeLabel="Back to Chitti"
           onClose={handleClose}
+          onManagePayments={() => navigate(`/admin/chittis/${chitti.id}/payments`)}
+          onManageMembers={() => navigate(`/admin/chittis/${chitti.id}/members`)}
         />
       )}
     </div>
