@@ -14,7 +14,7 @@ export function CountdownCard({ targetIso, label = 'Next auction' }: CountdownCa
   if (isPast === undefined) return null
 
   return (
-    <div className="rounded-3xl border border-brand-100 bg-brand-50/60 p-6 text-center dark:border-brand-500/25 dark:bg-brand-500/10">
+    <div className="rounded-3xl border border-brand-100 bg-brand-50/60 p-4 text-center sm:p-6 dark:border-brand-500/25 dark:bg-brand-500/10">
       <div className="mb-4 flex items-center justify-center gap-1.5 text-sm font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
         <Timer className="size-4" />
         {label}

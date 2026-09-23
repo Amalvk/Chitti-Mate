@@ -14,14 +14,14 @@ export function ChittiTabBar({ chittiId }: ChittiTabBarProps) {
   ]
 
   return (
-    <div className="no-scrollbar -mx-4 mb-5 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <div className="no-scrollbar mb-5 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}
           to={tab.to}
           end={tab.end}
           className={({ isActive }) =>
-            `whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            `whitespace-nowrap rounded-xl px-2 py-2 text-sm font-semibold transition-colors ${
               isActive
                 ? 'bg-ink-900 text-white dark:bg-ink-100 dark:text-ink-900'
                 : 'bg-white text-ink-500 border border-ink-200 dark:bg-ink-900 dark:text-ink-400 dark:border-ink-700'
