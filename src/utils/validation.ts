@@ -1,4 +1,5 @@
 import type { ChittiDuration, SelectionMethod } from '@/types'
+import { combineDateAndTime, isPast, todayDateInputValue } from './date'
 
 export interface CreateChittiFormValues {
   name: string
@@ -38,10 +39,16 @@ export function validateCreateChittiForm(values: CreateChittiFormValues, members
 
   if (membersCount < 2) errors.members = 'Add at least 2 members'
 
-  if (!values.startDate) errors.startDate = 'Start date is required'
+  if (!values.startDate) {
+    errors.startDate = 'Start date is required'
+  } else if (values.startDate < todayDateInputValue()) {
+    errors.startDate = 'Start date cannot be in the past'
+  }
 
   if (!values.auctionDate || !values.auctionTime) {
     errors.auction = 'Auction date & time is required'
+  } else if (isPast(combineDateAndTime(values.auctionDate, values.auctionTime))) {
+    errors.auction = 'Auction time cannot be in the past'
   }
 
   return errors

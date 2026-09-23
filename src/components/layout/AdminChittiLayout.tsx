@@ -11,6 +11,14 @@ import { BackHeader } from './BackHeader'
 import { ChittiTabBar } from './ChittiTabBar'
 import { FolderX } from 'lucide-react'
 
+// Module-level (not React state) — set by ChittiDetails while its own delete
+// action is in flight. deleteChitti's Firestore write is echoed back through
+// this tab's live onSnapshot subscription (useChitti) almost immediately —
+// well before deleteChitti()'s promise resolves and the caller gets to
+// navigate away — which would otherwise flash the "not found" EmptyState
+// below for a moment before the route change actually lands.
+export const chittisBeingDeleted = new Set<string>()
+
 export function AdminChittiLayout() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -35,6 +43,8 @@ export function AdminChittiLayout() {
   }
 
   if (notFound || !chitti || !id) {
+    if (id && chittisBeingDeleted.has(id)) return null
+
     return (
       <EmptyState
         icon={<FolderX className="size-6" />}

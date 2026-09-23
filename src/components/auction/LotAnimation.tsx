@@ -1,16 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { PartyPopper, Sparkles, UserX } from 'lucide-react'
+import { PartyPopper, Sparkles, UserX, Users } from 'lucide-react'
 import type { Member } from '@/types'
 import { formatCurrency } from '@/utils/currency'
 import { Button } from '@/components/ui/Button'
 import { Confetti } from './Confetti'
 
-type Phase = 'preparing' | 'checking' | 'selecting' | 'locking' | 'revealed'
+type Phase = 'preparing' | 'checking' | 'roster' | 'selecting' | 'locking' | 'revealed'
 
-const SHUFFLE_INTERVAL_MS = 90
+/** Fast enough that names blur past rather than read as a slow slideshow. */
+const SHUFFLE_INTERVAL_MS = 55
 /** Decelerating lock-in run once a winner is known, before settling on their name — long enough to feel like a real draw, not a coin flip. */
 const LOCK_IN_DELAYS = [100, 130, 170, 220, 280, 360, 460, 580, 720]
+const PREPARING_MS = 1500
+const CHECKING_MS = 1500
+/** Scales with roster size so the staggered reveal always finishes with room to read it, capped so a big chitti doesn't drag the ceremony out. */
+function rosterHoldMs(memberCount: number): number {
+  return Math.min(4500, 2000 + memberCount * 80)
+}
+/**
+ * The shuffle is real (driven by `prepareLot` actually resolving), which
+ * usually takes well under a second — far too quick to read as a fair draw.
+ * This floor keeps the "selecting" phase running for a believable stretch
+ * regardless of how fast the server responds; a *slower* server just runs
+ * past it naturally, since locking only ever starts once the winner is known.
+ */
+const MIN_SELECTING_MS = 4000
 
 interface LotAnimationProps {
   open: boolean
@@ -42,6 +57,7 @@ export function LotAnimation({
   const [spinName, setSpinName] = useState('')
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const shuffleInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const selectingStartedAt = useRef(0)
 
   function clearAll() {
     timers.current.forEach(clearTimeout)
@@ -52,9 +68,9 @@ export function LotAnimation({
     }
   }
 
-  // Mount/open sequence: preparing -> checking -> selecting. Deliberately
-  // ignores later changes to `winner` — arriving mid-shuffle is handled by
-  // the lock-in effect below, not by resetting this intro sequence.
+  // Mount/open sequence: preparing -> checking -> roster -> selecting.
+  // Deliberately ignores later changes to `winner` — arriving mid-shuffle is
+  // handled by the lock-in effect below, not by resetting this intro sequence.
   useEffect(() => {
     if (!open) return
     clearAll()
@@ -71,18 +87,27 @@ export function LotAnimation({
     }
 
     setPhase('preparing')
-    const t1 = setTimeout(() => setPhase('checking'), 1500)
-    const t2 = setTimeout(() => setPhase('selecting'), 3000)
-    timers.current.push(t1, t2)
+    const rosterMs = rosterHoldMs(eligibleMembers.length)
+    const t1 = setTimeout(() => setPhase('checking'), PREPARING_MS)
+    const t2 = setTimeout(() => setPhase('roster'), PREPARING_MS + CHECKING_MS)
+    const t3 = setTimeout(
+      () => {
+        selectingStartedAt.current = Date.now()
+        setPhase('selecting')
+      },
+      PREPARING_MS + CHECKING_MS + rosterMs,
+    )
+    timers.current.push(t1, t2, t3)
 
     return clearAll
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hasEligibleMembers])
 
-  // While selecting with no winner decided yet, shuffle names indefinitely —
-  // this is the "lot is live" state a viewer can watch for as long as it takes.
+  // Shuffles for as long as we're in "selecting", independent of whether the
+  // winner is already known — the deceleration into a name only ever starts
+  // once the effect below promotes us to "locking".
   useEffect(() => {
-    if (phase !== 'selecting' || winner || eligibleMembers.length === 0) return
+    if (phase !== 'selecting' || eligibleMembers.length === 0) return
 
     const names = eligibleMembers.map((m) => m.name)
     shuffleInterval.current = setInterval(() => {
@@ -95,18 +120,28 @@ export function LotAnimation({
         shuffleInterval.current = null
       }
     }
-  }, [phase, winner, eligibleMembers])
+  }, [phase, eligibleMembers])
 
   // The winner became known (this tab's own call resolved, or another
-  // viewer's did) — stop shuffling and decelerate into the reveal.
+  // viewer's did) — but only promote to "locking" once the shuffle has run
+  // for at least MIN_SELECTING_MS. Firestore round-trips are often well
+  // under a second, which would otherwise skip straight to locking with no
+  // visible "selecting" beat at all.
   useEffect(() => {
     if (!winner || phase !== 'selecting') return
+    const remaining = Math.max(MIN_SELECTING_MS - (Date.now() - selectingStartedAt.current), 0)
+    const t = setTimeout(() => setPhase('locking'), remaining)
+    timers.current.push(t)
+  }, [winner, phase])
+
+  // Entering "locking" runs the decelerating reveal sequence exactly once.
+  useEffect(() => {
+    if (phase !== 'locking' || !winner) return
     if (shuffleInterval.current) {
       clearInterval(shuffleInterval.current)
       shuffleInterval.current = null
     }
 
-    setPhase('locking')
     const names = eligibleMembers.length > 0 ? eligibleMembers.map((m) => m.name) : [winner.name]
     const runLockIn = (step: number) => {
       if (step >= LOCK_IN_DELAYS.length) {
@@ -121,7 +156,7 @@ export function LotAnimation({
     }
     runLockIn(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [winner, phase])
+  }, [phase])
 
   useEffect(() => clearAll, [])
 
@@ -176,6 +211,27 @@ export function LotAnimation({
               <Spinner />
               <h2 className="text-xl font-bold sm:text-2xl">Checking eligible members…</h2>
               <p className="text-white/60 sm:text-lg">{eligibleMembers.length} members eligible</p>
+            </motion.div>
+          )}
+
+          {hasEligibleMembers && phase === 'roster' && (
+            <motion.div key="roster" {...fade} className="flex w-full max-w-md flex-col items-center gap-4">
+              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-brand-300 sm:text-base">
+                <Users className="size-4" /> {eligibleMembers.length} eligible for this cycle
+              </p>
+              <div className="grid max-h-72 w-full grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+                {eligibleMembers.map((member, i) => (
+                  <motion.div
+                    key={member.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.035, duration: 0.18 }}
+                    className="truncate rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold"
+                  >
+                    {member.name}
+                  </motion.div>
+                ))}
+              </div>
             </motion.div>
           )}
 

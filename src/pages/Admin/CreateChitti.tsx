@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { MemberForm } from '@/components/members/MemberForm'
 import { MemberCard } from '@/components/members/MemberCard'
 import { createChittiWithMembers } from '@/services/chitti/chitti'
-import { combineDateAndTime } from '@/utils/date'
+import { combineDateAndTime, todayDateInputValue } from '@/utils/date'
 import { formatCurrency } from '@/utils/currency'
 import { validateCreateChittiForm, hasErrors } from '@/utils/validation'
 import type { CreateChittiFormValues } from '@/utils/validation'
@@ -21,7 +21,7 @@ const initialValues: CreateChittiFormValues = {
   amount: '',
   commission: '',
   duration: 'monthly',
-  startDate: new Date().toISOString().slice(0, 10),
+  startDate: todayDateInputValue(),
   selectionMethod: 'lot',
   auctionDate: '',
   auctionTime: '',
@@ -150,6 +150,7 @@ export function CreateChitti() {
             <TextField
               label="Start Date"
               type="date"
+              min={todayDateInputValue()}
               value={values.startDate}
               onChange={(e) => setField('startDate', e.target.value)}
               error={errors.startDate}
@@ -205,6 +206,7 @@ export function CreateChitti() {
               <TextField
                 label="Auction Date"
                 type="date"
+                min={todayDateInputValue()}
                 value={values.auctionDate}
                 onChange={(e) => setField('auctionDate', e.target.value)}
               />

@@ -61,8 +61,25 @@ export function formatDateTime(iso: string): string {
   return `${formatDate(iso)} · ${formatTime(iso)}`
 }
 
+/**
+ * Local (not UTC) calendar date as `YYYY-MM-DD`, matching what a native date
+ * input expects and what a user actually perceives as "today" — unlike
+ * `toISOString().slice(0, 10)`, which reads the UTC date and rolls over
+ * several hours early for any timezone ahead of UTC (e.g. IST, UTC+5:30).
+ */
+function toLocalDateInputValue(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function todayDateInputValue(): string {
+  return toLocalDateInputValue(new Date())
+}
+
 export function toDateInputValue(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10)
+  return toLocalDateInputValue(new Date(iso))
 }
 
 export function toTimeInputValue(iso: string): string {

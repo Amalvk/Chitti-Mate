@@ -9,7 +9,15 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useLotAutoTrigger } from '@/hooks/useLotAutoTrigger'
 import { confirmWinner, cycleIdFor } from '@/services/chitti/lot'
 
-const RETRY_DELAYS_MS = [400, 900, 1500]
+// This tab's own `prepareLot` write can be echoed back through its local
+// Firestore cache (making `draw.winner` go non-null) before that write is
+// durably committed server-side. `confirmWinner` always reads the server, so
+// it can land in that narrow window and see a still-null `winnerId`. The
+// retry budget needs to comfortably outlast real-world write latency —
+// 2.8s (the old budget) was routinely too short over anything but a fast
+// local connection, surfacing a false "could not finalize" error even though
+// the very next retry (or a page refresh) would have shown it as finalized.
+const RETRY_DELAYS_MS = [400, 800, 1200, 1800, 2500, 3500, 5000]
 
 async function confirmWithRetry(chittiId: string, cycleId: string): Promise<void> {
   for (let attempt = 0; ; attempt++) {

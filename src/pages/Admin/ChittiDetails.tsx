@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { CheckCircle2, Dices, Share2, Trash2, Trophy, Wallet } from 'lucide-react'
 import { useChittiOutletContext } from '@/context/chittiOutletContext'
+import { chittisBeingDeleted } from '@/components/layout/AdminChittiLayout'
 import { ChittiHeader } from '@/components/chitti/ChittiHeader'
 import { CountdownCard } from '@/components/chitti/CountdownCard'
 import { ChittiProgress } from '@/components/chitti/ChittiProgress'
@@ -65,6 +66,7 @@ export function ChittiDetails() {
 
   async function handleDelete() {
     setDeleting(true)
+    chittisBeingDeleted.add(chitti.id)
     try {
       await deleteChitti(chitti.id)
       toast.success('Chitti deleted')
@@ -72,6 +74,8 @@ export function ChittiDetails() {
     } catch {
       toast.error('Could not delete this chitti. Please try again.')
       setDeleting(false)
+    } finally {
+      chittisBeingDeleted.delete(chitti.id)
     }
   }
 

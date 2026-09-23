@@ -7,6 +7,8 @@ interface RevealedDraw {
   cycleId: string
   cycleNumber: number
   winner: Member
+  /** The eligible pool as it was for THIS cycle at decision time — see the latch below. */
+  eligibleMembers: Member[]
 }
 
 export interface LotDrawState {
@@ -125,7 +127,12 @@ export function useLotAutoTrigger(
     setRevealed((prev) =>
       prev?.cycleId === currentCycle.id
         ? prev
-        : { cycleId: currentCycle.id, cycleNumber: currentCycle.cycleNumber, winner: liveWinner },
+        : {
+            cycleId: currentCycle.id,
+            cycleNumber: currentCycle.cycleNumber,
+            winner: liveWinner,
+            eligibleMembers,
+          },
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCycle?.id, liveWinner])
@@ -143,11 +150,18 @@ export function useLotAutoTrigger(
   // own (possibly empty) live eligibility, or the reveal would render behind
   // the "Lot cannot start" branch instead of the winner it already decided.
   const hasEligibleMembers = !!revealed || eligibleMembers.length > 0
+  // `confirmWinner` runs independently and can advance `currentCycle` to the
+  // next one (with its own, unrelated live eligibility) well before the admin's
+  // reveal animation finishes playing out. Once latched, the eligible pool
+  // shown must stay pinned to the one THIS cycle's winner was actually drawn
+  // from — otherwise the ceremony's "N eligible" count and name pool visibly
+  // shift mid-animation as the next cycle's payments get seeded underneath it.
+  const displayedEligibleMembers = revealed?.eligibleMembers ?? eligibleMembers
 
   return {
     open,
     hasEligibleMembers,
-    eligibleMembers,
+    eligibleMembers: displayedEligibleMembers,
     winner,
     cycleNumber,
     skipSpin,
