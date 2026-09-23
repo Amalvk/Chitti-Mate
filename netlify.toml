@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+
 [build.environment]
   # These are Vite VITE_-prefixed vars, which are intentionally inlined into
   # the client-side JS bundle at build time (Firebase web config — public by
