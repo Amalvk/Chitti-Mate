@@ -56,7 +56,7 @@ export function Landing() {
             <span className="text-brand-600 dark:text-brand-400">Run every lot</span> with confidence.
           </h1>
           <p className="max-w-md text-base text-ink-500 dark:text-ink-400">
-            ChittiFlow keeps every cycle, payment and winner in one place — shared with your
+            Chitty Mate keeps every cycle, payment and winner in one place — shared with your
             members in real time.
           </p>
 
@@ -89,7 +89,7 @@ export function Landing() {
       </main>
 
       <footer className="px-6 pb-6 text-center text-xs text-ink-400 dark:text-ink-500">
-        Chitti Koottam · Authentication coming soon
+        Chitty Mate · Authentication coming soon
       </footer>
     </div>
   )

@@ -42,13 +42,13 @@ export function More() {
         </div>
         <Link to="/" className="flex items-center gap-3 px-5 py-4 hover:bg-ink-50 dark:hover:bg-ink-800">
           <Info className="size-5 text-ink-500 dark:text-ink-400" />
-          <span className="flex-1 font-semibold text-ink-800 dark:text-ink-100">About Chitti Koottam</span>
+          <span className="flex-1 font-semibold text-ink-800 dark:text-ink-100">About Chitty Mate</span>
           <ChevronRight className="size-4 text-ink-300 dark:text-ink-600" />
         </Link>
       </Card>
 
       <div className="flex items-center gap-2 px-1 text-xs text-ink-400 dark:text-ink-500">
-        <Coins className="size-3.5" /> Chitti Koottam · v0.1 MVP
+        <Coins className="size-3.5" /> Chitty Mate · v0.1 MVP
       </div>
     </div>
   )

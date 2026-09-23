@@ -9,7 +9,7 @@ export async function shareChitti(chittiId: string, chittiName: string): Promise
   const url = getPublicChittiUrl(chittiId)
   const shareData = {
     title: chittiName,
-    text: `Track ${chittiName} on Chitti Koottam`,
+    text: `Track ${chittiName} on Chitty Mate`,
     url,
   }
 

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 export type Theme = 'light' | 'dark'
 
-const STORAGE_KEY = 'chitti-koottam-theme'
+const STORAGE_KEY = 'chitty-mate-theme'
 
 interface ThemeContextValue {
   theme: Theme
