@@ -1,0 +1,199 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@500&display=swap");
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  --color-brand-50: #fdfbd4;
+  --color-brand-100: #f1daaa;
+  --color-brand-200: #e5ba7f;
+  --color-brand-300: #d89955;
+  --color-brand-400: #cc792a;
+  --color-brand-500: #c05800;
+  --color-brand-600: #994700;
+  --color-brand-700: #713600;
+  --color-brand-800: #552d07;
+  --color-brand-900: #38240d;
+
+  --color-ink-50: #fffbeb;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d7dbe3;
+  --color-ink-300: #b3bac8;
+  --color-ink-400: #8791a6;
+  --color-ink-500: #666f87;
+  --color-ink-600: #4d5570;
+  --color-ink-700: #3a405a;
+  --color-ink-800: #262b40;
+  --color-ink-900: #14172a;
+  --color-ink-950: #0b0d19;
+
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+
+  --shadow-soft: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.12);
+  --shadow-soft-lg: 0 4px 12px rgba(20, 23, 42, 0.06), 0 16px 40px -16px rgba(20, 23, 42, 0.18);
+
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pop {
+    0% { opacity: 0; transform: scale(0.85); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: light;
+    /* Several full-bleed elements (e.g. the scrollable chitti tab bar) use
+       negative margins to reach the screen edges on mobile; without this,
+       that bleed extends past the viewport and gives the whole page a
+       horizontal scrollbar instead of staying contained to that element.
+       `clip` (not `hidden`) specifically, since `hidden` forces the other
+       axis's `overflow-y: visible` to compute as `auto`, which turns html
+       into its own scroll container and breaks `position: sticky` for
+       descendants like the admin Sidebar that stick relative to the page. */
+    overflow-x: clip;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased dark:bg-ink-950 dark:text-ink-50;
+    font-family: var(--font-sans);
+    overflow-x: clip;
+  }
+  #root {
+    min-height: 100dvh;
+  }
+  ::selection {
+    @apply bg-brand-200 text-brand-900 dark:bg-brand-500/30 dark:text-brand-100;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* react-flip-clock-countdown theming — mapped onto the app's own palette so
+   it reads as one of our components rather than a bolted-on widget. Sized up
+   at wider breakpoints instead of via the library's own props, since its
+   digit blocks are plain CSS custom properties. */
+.chitti-flip-clock {
+  --fcc-flip-duration: 0.45s;
+  --fcc-spacing: 6px;
+  --fcc-digit-block-width: 27px;
+  --fcc-digit-block-height: 36px;
+  --fcc-digit-block-radius: 6px;
+  --fcc-digit-block-spacing: 3px;
+  --fcc-digit-font-size: 15px;
+  --fcc-label-font-size: 8px;
+  --fcc-label-color: var(--color-ink-400);
+  --fcc-background: white;
+  --fcc-digit-color: var(--color-ink-900);
+  --fcc-divider-color: rgba(0, 0, 0, 0.08);
+  --fcc-divider-height: 1px;
+  --fcc-shadow: var(--shadow-soft-lg);
+  --fcc-separator-size: 4px;
+  --fcc-separator-color: var(--color-brand-200);
+}
+.dark .chitti-flip-clock {
+  --fcc-label-color: var(--color-ink-500);
+  --fcc-background: var(--color-ink-900);
+  --fcc-digit-color: var(--color-ink-50);
+  --fcc-divider-color: rgba(255, 255, 255, 0.08);
+  --fcc-shadow: none;
+  --fcc-separator-color: rgba(192, 88, 0, 0.5);
+}
+
+/* Compact variant for the countdown embedded inside a chitti list card —
+   fixed small size regardless of breakpoint, unlike the full-width one on
+   CountdownCard which scales up on larger screens. */
+.chitti-flip-clock-compact {
+  --fcc-flip-duration: 0.4s;
+  --fcc-spacing: 4px;
+  --fcc-digit-block-width: 18px;
+  --fcc-digit-block-height: 24px;
+  --fcc-digit-block-radius: 5px;
+  --fcc-digit-block-spacing: 2px;
+  --fcc-digit-font-size: 11px;
+  --fcc-label-font-size: 7px;
+  --fcc-label-color: var(--color-ink-400);
+  --fcc-background: white;
+  --fcc-digit-color: var(--color-ink-900);
+  --fcc-divider-color: rgba(0, 0, 0, 0.08);
+  --fcc-divider-height: 1px;
+  --fcc-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --fcc-separator-size: 3px;
+  --fcc-separator-color: var(--color-brand-300);
+}
+.dark .chitti-flip-clock-compact {
+  --fcc-label-color: var(--color-ink-500);
+  --fcc-background: var(--color-ink-900);
+  --fcc-digit-color: var(--color-ink-50);
+  --fcc-divider-color: rgba(255, 255, 255, 0.08);
+  --fcc-shadow: none;
+  --fcc-separator-color: rgba(192, 88, 0, 0.5);
+}
+@media (min-width: 400px) {
+  .chitti-flip-clock {
+    --fcc-digit-block-width: 32px;
+    --fcc-digit-block-height: 42px;
+    --fcc-digit-font-size: 17px;
+  }
+}
+@media (min-width: 640px) {
+  .chitti-flip-clock {
+    --fcc-spacing: 10px;
+    --fcc-digit-block-width: 48px;
+    --fcc-digit-block-height: 62px;
+    --fcc-digit-font-size: 26px;
+    --fcc-label-font-size: 10px;
+  }
+}
+@media (min-width: 768px) {
+  .chitti-flip-clock {
+    --fcc-digit-block-width: 56px;
+    --fcc-digit-block-height: 72px;
+    --fcc-digit-font-size: 30px;
+    --fcc-label-font-size: 11px;
+  }
+}
