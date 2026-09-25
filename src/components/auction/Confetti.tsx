@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 
-const COLORS = ['#c05800', '#cc792a', '#10b981', '#f59e0b', '#994700']
+const COLORS = ['#2979ff', '#3d9eff', '#10b981', '#f59e0b', '#1e63e0']
 
 interface Piece {
   id: number

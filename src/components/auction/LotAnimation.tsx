@@ -373,11 +373,7 @@ export function LotAnimation({
               <p className="text-cool-gray sm:text-lg">Cycle #{cycleNumber}</p>
               <p className="mt-1 text-2xl font-bold text-bright-blue sm:text-3xl">{formatCurrency(amount)}</p>
 
-              <Button
-                size="lg"
-                className="mt-6 !bg-electric-blue hover:!bg-bright-blue active:!bg-bright-blue"
-                onClick={onClose}
-              >
+              <Button size="lg" className="mt-6" onClick={onClose}>
                 {closeLabel}
               </Button>
             </motion.div>
