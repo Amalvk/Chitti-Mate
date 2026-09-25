@@ -6,12 +6,13 @@ import { formatCurrency } from '@/utils/currency'
 import { Button } from '@/components/ui/Button'
 import { Confetti } from './Confetti'
 
-type Phase = 'preparing' | 'checking' | 'roster' | 'selecting' | 'locking' | 'revealed'
+type Phase = 'preparing' | 'checking' | 'roster' | 'selecting' | 'revealed'
 
-/** Fast enough that names blur past rather than read as a slow slideshow. */
-const SHUFFLE_INTERVAL_MS = 20
-/** Decelerating lock-in run once a winner is known, before settling on their name — long enough to feel like a real draw, not a coin flip. */
-const LOCK_IN_DELAYS = [100, 130, 170, 220, 280, 360, 460, 580, 720]
+/** Visible rows in the scrolling reel — must be odd so there's a single centre row. */
+const REEL_SIZE = 7
+const REEL_CENTER = Math.floor(REEL_SIZE / 2)
+/** Direction each tick advances the round-robin cursor (wraps through the member list in a fixed, repeating order — never randomised — so no two nearby rows repeat a name). */
+const REEL_DIRECTION = -1
 const PREPARING_MS = 1500
 const CHECKING_MS = 1500
 /** Scales with roster size so the staggered reveal always finishes with room to read it, capped so a big chitti doesn't drag the ceremony out. */
@@ -19,13 +20,43 @@ function rosterHoldMs(memberCount: number): number {
   return Math.min(4500, 2000 + memberCount * 80)
 }
 /**
- * The shuffle is real (driven by `prepareLot` actually resolving), which
- * usually takes well under a second — far too quick to read as a fair draw.
- * This floor keeps the "selecting" phase running for a believable stretch
- * regardless of how fast the server responds; a *slower* server just runs
- * past it naturally, since locking only ever starts once the winner is known.
+ * Total length of the spin, start to settle. Fixed regardless of how fast the
+ * server resolves the winner — a *slower* server just spins past it naturally
+ * (see the "ran out of schedule" branch below), a fast one still gets the
+ * full ceremony instead of skipping straight to a reveal.
  */
-const MIN_SELECTING_MS = 4000
+const SPIN_TOTAL_MS = 15000
+/** Tick pace at the very start of the spin — fast enough to blur past. */
+const SPIN_FAST_MS = 60
+/** Tick pace once the spin has fully decelerated, right before it settles. */
+const SPIN_SLOW_MS = 850
+
+/**
+ * Continuous easing from fast to slow across the whole spin — a single smooth
+ * curve rather than distinct fast/medium/slow blocks, so the deceleration
+ * reads as one continuous slowdown instead of stepped gear changes.
+ */
+function spinIntervalAt(elapsedMs: number): number {
+  const p = Math.min(elapsedMs / SPIN_TOTAL_MS, 1)
+  const eased = p * p * p
+  return SPIN_FAST_MS + (SPIN_SLOW_MS - SPIN_FAST_MS) * eased
+}
+
+/** Precomputed tick delays covering the full spin — fixed and independent of the winner, so "how many ticks remain" is exact arithmetic, not a live measurement. */
+function buildSpinSchedule(): number[] {
+  const delays: number[] = []
+  let elapsed = 0
+  while (elapsed < SPIN_TOTAL_MS) {
+    const delay = spinIntervalAt(elapsed)
+    delays.push(delay)
+    elapsed += delay
+  }
+  return delays
+}
+
+function mod(value: number, length: number): number {
+  return ((value % length) + length) % length
+}
 
 interface LotAnimationProps {
   open: boolean
@@ -64,23 +95,37 @@ export function LotAnimation({
   onManageMembers,
 }: LotAnimationProps) {
   const [phase, setPhase] = useState<Phase>('preparing')
-  const [spinName, setSpinName] = useState('')
+  const [reel, setReel] = useState<{ id: number; name: string }[]>([])
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-  const shuffleInterval = useRef<ReturnType<typeof setInterval> | null>(null)
-  const selectingStartedAt = useRef(0)
+  const nextReelId = useRef(0)
+  const reelTickMs = useRef(SPIN_FAST_MS)
+  const winnerRef = useRef(winner)
+  useEffect(() => {
+    winnerRef.current = winner
+  }, [winner])
+
+  function seedReel(names: string[]) {
+    nextReelId.current = 0
+    setReel(
+      Array.from({ length: REEL_SIZE }, (_, i) => ({
+        id: nextReelId.current++,
+        name: names[i % names.length] ?? '',
+      })),
+    )
+  }
+
+  function pushReelName(name: string) {
+    setReel((prev) => [...prev.slice(1), { id: nextReelId.current++, name }])
+  }
 
   function clearAll() {
     timers.current.forEach(clearTimeout)
     timers.current = []
-    if (shuffleInterval.current) {
-      clearInterval(shuffleInterval.current)
-      shuffleInterval.current = null
-    }
   }
 
   // Mount/open sequence: preparing -> checking -> roster -> selecting.
-  // Deliberately ignores later changes to `winner` — arriving mid-shuffle is
-  // handled by the lock-in effect below, not by resetting this intro sequence.
+  // Deliberately ignores later changes to `winner` — arriving mid-spin is
+  // handled by the spin effect below, not by resetting this intro sequence.
   useEffect(() => {
     if (!open) return
     clearAll()
@@ -92,7 +137,6 @@ export function LotAnimation({
 
     if (skipSpin && winner) {
       setPhase('revealed')
-      setSpinName(winner.name)
       return
     }
 
@@ -100,73 +144,118 @@ export function LotAnimation({
     const rosterMs = rosterHoldMs(eligibleMembers.length)
     const t1 = setTimeout(() => setPhase('checking'), PREPARING_MS)
     const t2 = setTimeout(() => setPhase('roster'), PREPARING_MS + CHECKING_MS)
-    const t3 = setTimeout(
-      () => {
-        selectingStartedAt.current = Date.now()
-        setPhase('selecting')
-      },
-      PREPARING_MS + CHECKING_MS + rosterMs,
-    )
+    const t3 = setTimeout(() => setPhase('selecting'), PREPARING_MS + CHECKING_MS + rosterMs)
     timers.current.push(t1, t2, t3)
 
     return clearAll
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hasEligibleMembers])
 
-  // Shuffles for as long as we're in "selecting", independent of whether the
-  // winner is already known — the deceleration into a name only ever starts
-  // once the effect below promotes us to "locking".
+  // Runs the entire spin: a continuously decelerating round-robin cycle
+  // through the eligible members (fixed cyclic order, never random, so no
+  // two nearby rows repeat a name) lasting SPIN_TOTAL_MS. Once the winner is
+  // known — usually within the first tick or two, since resolving it takes
+  // far less than the spin itself — the cursor is realigned exactly once so
+  // it keeps cycling in the same fixed order but now lands the winner in the
+  // centre row precisely when the schedule runs out.
   useEffect(() => {
     if (phase !== 'selecting' || eligibleMembers.length === 0) return
 
     const names = eligibleMembers.map((m) => m.name)
-    shuffleInterval.current = setInterval(() => {
-      setSpinName(names[Math.floor(Math.random() * names.length)])
-    }, SHUFFLE_INTERVAL_MS)
+    const n = names.length
+    const schedule = buildSpinSchedule()
+    const totalTicks = schedule.length
 
-    return () => {
-      if (shuffleInterval.current) {
-        clearInterval(shuffleInterval.current)
-        shuffleInterval.current = null
-      }
-    }
-  }, [phase, eligibleMembers])
+    let pushCursor = Math.floor(Math.random() * n)
+    let recalibrated = false
+    let cancelled = false
 
-  // The winner became known (this tab's own call resolved, or another
-  // viewer's did) — but only promote to "locking" once the shuffle has run
-  // for at least MIN_SELECTING_MS. Firestore round-trips are often well
-  // under a second, which would otherwise skip straight to locking with no
-  // visible "selecting" beat at all.
-  useEffect(() => {
-    if (!winner || phase !== 'selecting') return
-    const remaining = Math.max(MIN_SELECTING_MS - (Date.now() - selectingStartedAt.current), 0)
-    const t = setTimeout(() => setPhase('locking'), remaining)
-    timers.current.push(t)
-  }, [winner, phase])
+    seedReel(names)
 
-  // Entering "locking" runs the decelerating reveal sequence exactly once.
-  useEffect(() => {
-    if (phase !== 'locking' || !winner) return
-    if (shuffleInterval.current) {
-      clearInterval(shuffleInterval.current)
-      shuffleInterval.current = null
+    function push(index: number) {
+      pushReelName(names[mod(index, n)])
     }
 
-    const names = eligibleMembers.length > 0 ? eligibleMembers.map((m) => m.name) : [winner.name]
-    const runLockIn = (step: number) => {
-      if (step >= LOCK_IN_DELAYS.length) {
-        setSpinName(winner.name)
-        const reveal = setTimeout(() => setPhase('revealed'), 700)
-        timers.current.push(reveal)
-        return
-      }
-      setSpinName(names[Math.floor(Math.random() * names.length)])
-      const t = setTimeout(() => runLockIn(step + 1), LOCK_IN_DELAYS[step])
+    function reveal() {
+      const t = setTimeout(() => setPhase('revealed'), 500)
       timers.current.push(t)
     }
-    runLockIn(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
+
+    // Fallback for a slow-resolving winner: the schedule ran out before it
+    // arrived, so idle-spin (still fixed cyclic order) at the slowest pace
+    // until it does, then settle straight onto it.
+    function idleUntilWinner() {
+      if (cancelled) return
+      const winnerName = winnerRef.current
+      const winnerIdx = winnerName ? names.indexOf(winnerName.name) : -1
+      if (winnerIdx !== -1) {
+        settleOnto(winnerIdx)
+        return
+      }
+      push(pushCursor)
+      pushCursor = mod(pushCursor + REEL_DIRECTION, n)
+      reelTickMs.current = SPIN_SLOW_MS
+      const t = setTimeout(idleUntilWinner, SPIN_SLOW_MS)
+      timers.current.push(t)
+    }
+
+    // Pushes the guaranteed-correct tail — the winner, then exactly
+    // REEL_CENTER more cyclic pushes — so it lands in the centre row.
+    function settleOnto(winnerIdx: number) {
+      let k = 0
+      const step = () => {
+        if (cancelled) return
+        push(winnerIdx + REEL_DIRECTION * k)
+        reelTickMs.current = SPIN_SLOW_MS
+        if (k >= REEL_CENTER) {
+          reveal()
+          return
+        }
+        k++
+        const t = setTimeout(step, SPIN_SLOW_MS)
+        timers.current.push(t)
+      }
+      step()
+    }
+
+    function runScheduled(i: number) {
+      if (cancelled) return
+      const winnerName = winnerRef.current
+      const winnerIdx = winnerName ? names.indexOf(winnerName.name) : -1
+
+      if (i >= totalTicks) {
+        idleUntilWinner()
+        return
+      }
+
+      if (!recalibrated && winnerIdx !== -1) {
+        // Exactly this many cyclic ticks remain after this one — align the
+        // cursor so following them lands the winner in the centre row the
+        // instant the schedule ends.
+        const remaining = totalTicks - 1 - i
+        pushCursor = mod(winnerIdx + REEL_DIRECTION * (REEL_CENTER - remaining), n)
+        recalibrated = true
+      }
+
+      push(pushCursor)
+      pushCursor = mod(pushCursor + REEL_DIRECTION, n)
+      reelTickMs.current = schedule[i]
+
+      if (i === totalTicks - 1) {
+        reveal()
+        return
+      }
+
+      const t = setTimeout(() => runScheduled(i + 1), schedule[i])
+      timers.current.push(t)
+    }
+
+    runScheduled(0)
+
+    return () => {
+      cancelled = true
+    }
+  }, [phase, eligibleMembers])
 
   useEffect(() => clearAll, [])
 
@@ -176,11 +265,11 @@ export function LotAnimation({
   const showClose = revealing || !hasEligibleMembers
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink-950 text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-deep-navy text-soft-white">
       <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <p className="text-sm font-semibold text-white/60">Cycle #{cycleNumber}</p>
+        <p className="text-sm font-semibold text-cool-gray">Cycle #{cycleNumber}</p>
         {showClose ? (
-          <button onClick={onClose} className="text-sm font-semibold text-white/70 hover:text-white">
+          <button onClick={onClose} className="text-sm font-semibold text-cool-gray hover:text-soft-white">
             Close
           </button>
         ) : (
@@ -195,11 +284,11 @@ export function LotAnimation({
         <AnimatePresence mode="wait">
           {!hasEligibleMembers && (
             <motion.div key="none" {...fade} className="flex flex-col items-center gap-4">
-              <div className="flex size-16 items-center justify-center rounded-full bg-white/10">
-                <UserX className="size-8 text-white/70" />
+              <div className="flex size-16 items-center justify-center rounded-full bg-midnight">
+                <UserX className="size-8 text-cool-gray" />
               </div>
               <h2 className="text-2xl font-extrabold sm:text-3xl">Lot cannot start</h2>
-              <p className="max-w-xs text-white/60 sm:max-w-sm sm:text-lg">
+              <p className="max-w-xs text-cool-gray sm:max-w-sm sm:text-lg">
                 No eligible members. All active members either have pending payments or have
                 already won a previous cycle.
               </p>
@@ -234,13 +323,13 @@ export function LotAnimation({
             <motion.div key="checking" {...fade} className="flex flex-col items-center gap-4">
               <Spinner />
               <h2 className="text-xl font-bold sm:text-2xl">Checking eligible members…</h2>
-              <p className="text-white/60 sm:text-lg">{eligibleMembers.length} members eligible</p>
+              <p className="text-cool-gray sm:text-lg">{eligibleMembers.length} members eligible</p>
             </motion.div>
           )}
 
           {hasEligibleMembers && phase === 'roster' && (
             <motion.div key="roster" {...fade} className="flex w-full max-w-md flex-col items-center gap-4">
-              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-brand-300 sm:text-base">
+              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-bright-blue sm:text-base">
                 <Users className="size-4" /> {eligibleMembers.length} eligible for this cycle
               </p>
               <div className="grid max-h-72 w-full grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
@@ -250,7 +339,7 @@ export function LotAnimation({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.035, duration: 0.18 }}
-                    className="truncate rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold"
+                    className="truncate rounded-xl bg-midnight px-3 py-2 text-sm font-semibold"
                   >
                     {member.name}
                   </motion.div>
@@ -259,26 +348,12 @@ export function LotAnimation({
             </motion.div>
           )}
 
-          {hasEligibleMembers && (phase === 'selecting' || phase === 'locking') && (
+          {hasEligibleMembers && phase === 'selecting' && (
             <motion.div key="selecting" {...fade} className="flex flex-col items-center gap-6">
-              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-brand-300 sm:text-base">
+              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-bright-blue sm:text-base">
                 <Sparkles className="size-4" /> Selecting · {eligibleMembers.length} eligible
               </p>
-              <div className="relative flex size-40 items-center justify-center sm:size-48">
-                <motion.div
-                  animate={{ scale: [1, 1.08, 1], opacity: [0.5, 0.9, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-                  className="absolute inset-0 rounded-full bg-brand-500/20 blur-xl"
-                />
-                <motion.p
-                  key={spinName}
-                  initial={{ opacity: 0.3, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="relative px-2 text-4xl font-extrabold tracking-tight sm:text-5xl"
-                >
-                  {spinName || '—'}
-                </motion.p>
-              </div>
+              <LotReel reel={reel} tickMs={reelTickMs.current} />
             </motion.div>
           )}
 
@@ -291,14 +366,18 @@ export function LotAnimation({
               className="relative flex flex-col items-center gap-3"
             >
               <PartyPopper className="size-8 text-warning-400 sm:size-10" />
-              <p className="text-sm font-bold uppercase tracking-widest text-white/60 sm:text-base">
+              <p className="text-sm font-bold uppercase tracking-widest text-cool-gray sm:text-base">
                 We have a winner
               </p>
               <h2 className="text-5xl font-extrabold tracking-tight sm:text-6xl">{winner.name}</h2>
-              <p className="text-white/60 sm:text-lg">Cycle #{cycleNumber}</p>
-              <p className="mt-1 text-2xl font-bold text-brand-300 sm:text-3xl">{formatCurrency(amount)}</p>
+              <p className="text-cool-gray sm:text-lg">Cycle #{cycleNumber}</p>
+              <p className="mt-1 text-2xl font-bold text-bright-blue sm:text-3xl">{formatCurrency(amount)}</p>
 
-              <Button size="lg" className="mt-6" onClick={onClose}>
+              <Button
+                size="lg"
+                className="mt-6 !bg-electric-blue hover:!bg-bright-blue active:!bg-bright-blue"
+                onClick={onClose}
+              >
                 {closeLabel}
               </Button>
             </motion.div>
@@ -321,7 +400,53 @@ function Spinner() {
     <motion.div
       animate={{ rotate: 360 }}
       transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
-      className="size-10 rounded-full border-2 border-white/20 border-t-white"
+      className="size-10 rounded-full border-2 border-midnight border-t-bright-blue"
     />
+  )
+}
+
+/** How much a row shrinks and fades as it moves away from the centre row. */
+function reelRowStyle(offset: number) {
+  const distance = Math.abs(offset)
+  if (distance === 0) return { opacity: 1, scale: 1, weight: 800, color: 'text-soft-white' }
+  if (distance === 1) return { opacity: 0.6, scale: 0.76, weight: 700, color: 'text-cool-gray' }
+  if (distance === 2) return { opacity: 0.32, scale: 0.58, weight: 600, color: 'text-cool-gray' }
+  return { opacity: 0.14, scale: 0.46, weight: 600, color: 'text-cool-gray' }
+}
+
+/** Vertical name reel for the lot draw — a column of rows sliding upward, with the winner settling into the glowing centre row. */
+function LotReel({ reel, tickMs }: { reel: { id: number; name: string }[]; tickMs: number }) {
+  return (
+    <div
+      className="relative h-72 w-64 overflow-hidden sm:h-80 sm:w-80"
+      style={{
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 22%, black 78%, transparent)',
+        maskImage: 'linear-gradient(to bottom, transparent, black 22%, black 78%, transparent)',
+      }}
+    >
+      <motion.div
+        animate={{ opacity: [0.4, 0.8, 0.4] }}
+        transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+        className="absolute inset-x-6 top-1/2 h-14 -translate-y-1/2 rounded-2xl bg-bright-blue/25 blur-2xl sm:h-16"
+      />
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {reel.map((row, i) => {
+          const offset = i - REEL_CENTER
+          const style = reelRowStyle(offset)
+          return (
+            <motion.div
+              key={row.id}
+              initial={{ opacity: 0, y: 44 }}
+              animate={{ opacity: style.opacity, y: 0, scale: style.scale }}
+              transition={{ duration: Math.min(tickMs, 260) / 1000, ease: 'easeOut' }}
+              className={`flex h-12 w-full items-center justify-center px-2 text-3xl tracking-tight sm:h-14 sm:text-4xl ${style.color}`}
+              style={{ fontWeight: style.weight }}
+            >
+              <span className="truncate">{row.name}</span>
+            </motion.div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
