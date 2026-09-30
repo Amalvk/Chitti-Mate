@@ -1,15 +1,17 @@
 import { Outlet, useNavigate, useParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { useChitti } from '@/hooks/useChitti'
 import { useMembers } from '@/hooks/useMembers'
 import { useCurrentCycle, useCycles } from '@/hooks/useCycle'
 import { usePayments } from '@/hooks/usePayments'
 import { useEligibility } from '@/hooks/useEligibility'
 import { cycleIdFor } from '@/services/chitti/lot'
+import { shareChitti } from '@/utils/share'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/EmptyState'
 import { BackHeader } from './BackHeader'
 import { ChittiTabBar } from './ChittiTabBar'
-import { FolderX } from 'lucide-react'
+import { FolderX, Share2 } from 'lucide-react'
 
 // Module-level (not React state) — set by ChittiDetails while its own delete
 // action is in flight. deleteChitti's Firestore write is echoed back through
@@ -29,6 +31,12 @@ export function AdminChittiLayout() {
   const currentCycleId = chitti ? cycleIdFor(chitti.currentCycle) : undefined
   const { payments } = usePayments(id, currentCycleId)
   const eligibility = useEligibility(members, payments, currentCycle)
+
+  async function handleShare() {
+    if (!chitti) return
+    const result = await shareChitti(chitti.id, chitti.name)
+    if (result === 'copied') toast.success('Chitti link copied')
+  }
 
   if (loading) {
     return (
@@ -68,6 +76,16 @@ export function AdminChittiLayout() {
         title={chitti.name}
         subtitle={`Cycle ${chitti.currentCycle} of ${chitti.totalCycles}`}
         onBack={() => navigate('/admin/chittis')}
+        action={
+          <button
+            onClick={handleShare}
+            aria-label="Share"
+            title="Share"
+            className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-ink-600 shadow-soft hover:bg-ink-50 dark:bg-ink-900 dark:text-ink-300 dark:shadow-none dark:hover:bg-ink-800"
+          >
+            <Share2 className="size-4" />
+          </button>
+        }
       />
       <ChittiTabBar chittiId={id} />
       <Outlet

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { CheckCircle2, Dices, Share2, Trash2, Trophy, Wallet } from 'lucide-react'
+import { CheckCircle2, Dices, Trash2, Trophy, Wallet } from 'lucide-react'
 import { useChittiOutletContext } from '@/context/chittiOutletContext'
 import { chittisBeingDeleted } from '@/components/layout/AdminChittiLayout'
 import { ChittiHeader } from '@/components/chitti/ChittiHeader'
@@ -13,7 +13,6 @@ import { PaymentSummary } from '@/components/chitti/PaymentSummary'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { BottomSheet } from '@/components/ui/BottomSheet'
-import { shareChitti } from '@/utils/share'
 import { useCountdown } from '@/hooks/useCountdown'
 import { formatMonthName } from '@/utils/date'
 import { deleteChitti } from '@/services/chitti/chitti'
@@ -59,11 +58,6 @@ export function ChittiDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown?.isPast, currentCycle?.id, chitti.id, navigate])
 
-  async function handleShare() {
-    const result = await shareChitti(chitti.id, chitti.name)
-    if (result === 'copied') toast.success('Chitti link copied')
-  }
-
   async function handleDelete() {
     setDeleting(true)
     chittisBeingDeleted.add(chitti.id)
@@ -81,15 +75,7 @@ export function ChittiDetails() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <ChittiHeader chitti={chitti} />
-        <button
-          onClick={handleShare}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3.5 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 dark:hover:bg-ink-800"
-        >
-          <Share2 className="size-4" /> Share
-        </button>
-      </div>
+      <ChittiHeader chitti={chitti} />
 
       {latestWinner && (
         <Card className="flex items-center gap-3.5 border-warning-200 bg-gradient-to-br from-warning-50 to-brand-50 dark:border-warning-500/25 dark:from-warning-500/10 dark:to-brand-500/10">

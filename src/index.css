@@ -200,6 +200,22 @@
   --fcc-shadow: none;
   --fcc-separator-color: rgba(41, 121, 255, 0.5);
 }
+
+/* Border around each day/hr/min/sec digit pair — `fcc__unit_time` is the
+   library's own stable class for that grouping (unlike the hashed CSS-module
+   ones), so it's safe to target directly. */
+.chitti-flip-clock .fcc__unit_time,
+.chitti-flip-clock-compact .fcc__unit_time {
+  padding: 6px;
+  border: 1px solid var(--fcc-divider-color);
+  border-radius: calc(var(--fcc-digit-block-radius) + 4px);
+}
+/* Border on each individual digit too, so the two digits inside a pair read
+   as separate blocks rather than one fused slab. */
+.chitti-flip-clock .fcc__digit_block,
+.chitti-flip-clock-compact .fcc__digit_block {
+  border: 1px solid var(--fcc-divider-color);
+}
 @media (min-width: 400px) {
   .chitti-flip-clock {
     --fcc-digit-block-width: 32px;

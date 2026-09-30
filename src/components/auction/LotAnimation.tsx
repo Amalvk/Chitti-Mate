@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { PartyPopper, Sparkles, UserX, Users } from 'lucide-react'
+import { Clock, PartyPopper, Sparkles, UserX, Users } from 'lucide-react'
 import type { Member } from '@/types'
 import { formatCurrency } from '@/utils/currency'
 import { Button } from '@/components/ui/Button'
@@ -96,6 +96,7 @@ export function LotAnimation({
 }: LotAnimationProps) {
   const [phase, setPhase] = useState<Phase>('preparing')
   const [reel, setReel] = useState<{ id: number; name: string }[]>([])
+  const [spinCountdown, setSpinCountdown] = useState(Math.ceil(SPIN_TOTAL_MS / 1000))
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const nextReelId = useRef(0)
   const reelTickMs = useRef(SPIN_FAST_MS)
@@ -169,6 +170,13 @@ export function LotAnimation({
     let pushCursor = Math.floor(Math.random() * n)
     let recalibrated = false
     let cancelled = false
+
+    setSpinCountdown(Math.ceil(SPIN_TOTAL_MS / 1000))
+    const countdownStart = Date.now()
+    const countdownInterval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((SPIN_TOTAL_MS - (Date.now() - countdownStart)) / 1000))
+      setSpinCountdown(remaining)
+    }, 1000)
 
     seedReel(names)
 
@@ -254,6 +262,7 @@ export function LotAnimation({
 
     return () => {
       cancelled = true
+      clearInterval(countdownInterval)
     }
   }, [phase, eligibleMembers])
 
@@ -268,6 +277,12 @@ export function LotAnimation({
     <div className="fixed inset-0 z-50 flex flex-col bg-deep-navy text-soft-white">
       <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <p className="text-sm font-semibold text-cool-gray">Cycle #{cycleNumber}</p>
+        {hasEligibleMembers && phase === 'selecting' && (
+          <p className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-bright-blue">
+            <Clock className="size-4" />
+            0:{spinCountdown.toString().padStart(2, '0')}
+          </p>
+        )}
         {showClose ? (
           <button onClick={onClose} className="text-sm font-semibold text-cool-gray hover:text-soft-white">
             Close

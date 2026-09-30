@@ -8,10 +8,11 @@ import { usePayments } from '@/hooks/usePayments'
 import { cycleIdFor } from '@/services/chitti/lot'
 import { formatCurrency } from '@/utils/currency'
 import { Card } from '@/components/ui/Card'
+import { CountdownSkeleton } from '@/components/ui/Skeleton'
 
 export function ChittiCard({ chitti }: { chitti: Chitti }) {
   const { members } = useMembers(chitti.id)
-  const { cycle } = useCurrentCycle(chitti.id, chitti.currentCycle)
+  const { cycle, loading: cycleLoading } = useCurrentCycle(chitti.id, chitti.currentCycle)
   const cycleId = cycleIdFor(chitti.currentCycle)
   const { payments } = usePayments(chitti.id, cycleId)
 
@@ -29,14 +30,18 @@ export function ChittiCard({ chitti }: { chitti: Chitti }) {
           </p>
         </div>
 
-        {cycle && chitti.status === 'active' && (
+        {chitti.status === 'active' && (cycle || cycleLoading) && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-ink-50 p-4 dark:bg-ink-800">
             <p className="text-xs font-bold uppercase tracking-wide text-ink-400 dark:text-ink-500">Next auction</p>
-            <FlipClockCountdown
-              className="chitti-flip-clock-compact"
-              to={cycle.auctionAt}
-              showLabels={false}
-            />
+            {cycle ? (
+              <FlipClockCountdown
+                className="chitti-flip-clock-compact"
+                to={cycle.auctionAt}
+                showLabels={false}
+              />
+            ) : (
+              <CountdownSkeleton />
+            )}
           </div>
         )}
 

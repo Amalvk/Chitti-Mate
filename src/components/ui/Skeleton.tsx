@@ -26,3 +26,24 @@ export function SkeletonList({ count = 3 }: { count?: number }) {
     </div>
   )
 }
+
+/**
+ * Stand-in for the compact flip-clock countdown while its cycle data is
+ * still loading — same digit-pair/separator shape and footprint so the card
+ * doesn't reflow once the real countdown mounts.
+ */
+export function CountdownSkeleton() {
+  return (
+    <div className="flex items-center gap-1.5" aria-hidden>
+      {Array.from({ length: 4 }).map((_, unit) => (
+        <div key={unit} className="flex items-center gap-1.5">
+          <div className="flex gap-1">
+            <Skeleton className="h-[34px] w-[29px]" />
+            <Skeleton className="h-[34px] w-[29px]" />
+          </div>
+          {unit < 3 && <span className="text-ink-300 dark:text-ink-600">:</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
