@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Ban, Dices, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { BackHeader } from '@/components/layout/BackHeader'
 import { TextField } from '@/components/ui/Field'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -21,8 +21,6 @@ const initialValues: CreateChittiFormValues = {
   amount: '',
   commission: '',
   duration: 'monthly',
-  startDate: todayDateInputValue(),
-  selectionMethod: 'lot',
   auctionDate: todayDateInputValue(),
   auctionTime: '',
 }
@@ -71,8 +69,9 @@ export function CreateChitti() {
           duration: values.duration,
           totalMembers: members.length,
           totalCycles: members.length,
-          startDate: new Date(values.startDate).toISOString(),
-          selectionMethod: values.selectionMethod,
+          startDate: new Date().toISOString(),
+          // Lot draws are the only selection method supported right now.
+          selectionMethod: 'lot',
         },
         members,
         auctionAt,
@@ -147,14 +146,6 @@ export function CreateChitti() {
                 ]}
               />
             </div>
-            <TextField
-              label="Start Date"
-              type="date"
-              min={todayDateInputValue()}
-              value={values.startDate}
-              onChange={(e) => setField('startDate', e.target.value)}
-              error={errors.startDate}
-            />
           </Card>
 
           <Card className="flex flex-col gap-4">
@@ -184,24 +175,6 @@ export function CreateChitti() {
 
           <Card className="flex flex-col gap-4">
             <SectionTitle>Auction Configuration</SectionTitle>
-            <div>
-              <p className="mb-1.5 text-sm font-semibold text-ink-700 dark:text-ink-200">Selection Method</p>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-3 rounded-2xl border border-brand-500 bg-brand-50 px-4 py-3.5 dark:bg-brand-500/15">
-                  <input type="radio" checked readOnly className="accent-brand-600" />
-                  <Dices className="size-4 text-brand-600 dark:text-brand-300" />
-                  <span className="font-semibold text-brand-700 dark:text-brand-300">Lot</span>
-                </label>
-                <label className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-ink-50 px-4 py-3.5 opacity-60 dark:border-ink-700 dark:bg-ink-800">
-                  <input type="radio" disabled className="accent-ink-400" />
-                  <Ban className="size-4 text-ink-400 dark:text-ink-500" />
-                  <span className="flex-1 font-semibold text-ink-500 dark:text-ink-400">By Call</span>
-                  <span className="rounded-full bg-ink-200 px-2 py-0.5 text-[10px] font-bold uppercase text-ink-500 dark:bg-ink-700 dark:text-ink-400">
-                    Coming soon
-                  </span>
-                </label>
-              </div>
-            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <TextField
                 label="Auction Date"
@@ -228,7 +201,7 @@ export function CreateChitti() {
       </div>
 
       <div className="safe-bottom fixed inset-x-0 bottom-0 border-t border-ink-100 bg-white/95 px-4 py-3 backdrop-blur md:px-8 dark:border-ink-800 dark:bg-ink-900/95">
-        <div className="mx-auto max-w-lg md:max-w-2xl">
+        <div className="mx-auto max-w-xl pb-4">
           <Button
             fullWidth
             size="lg"
@@ -236,7 +209,7 @@ export function CreateChitti() {
             loading={submitting}
             onClick={handleSubmit}
           >
-            Create Chitti
+            Create Chitty
           </Button>
         </div>
       </div>

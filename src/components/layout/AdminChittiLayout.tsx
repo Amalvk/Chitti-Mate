@@ -40,7 +40,7 @@ export function AdminChittiLayout() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-5 md:px-8 md:pt-8 md:pb-8">
+      <div className="mx-auto max-w-3xl">
         <SkeletonList count={2} />
       </div>
     )
@@ -71,7 +71,7 @@ export function AdminChittiLayout() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-5 md:px-8 md:pt-8 md:pb-8">
+    <div className="mx-auto max-w-3xl">
       <BackHeader
         title={chitti.name}
         subtitle={`Cycle ${chitti.currentCycle} of ${chitti.totalCycles}`}

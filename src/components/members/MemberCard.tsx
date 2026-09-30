@@ -1,50 +1,69 @@
-import { Phone, Trash2, Trophy, User, UserX } from 'lucide-react'
-import type { Member } from '@/types'
-import { maskPhone } from '@/utils/validation'
-import { Badge } from '@/components/ui/Badge'
+import { Trash2, Trophy, User, UserCheck, UserX } from 'lucide-react'
+import type { Member, Payment } from '@/types'
+import { Button } from '@/components/ui/Button'
 
 interface MemberCardProps {
   member: Member
   editable?: boolean
   onRemove?: (member: Member) => void
   /**
-   * 'remove' deletes a not-yet-saved draft row (CreateChitti); 'deactivate' is
-   * the real, non-destructive action on a saved member — they keep their
-   * history, they just stop being eligible for future cycles.
+   * 'remove' deletes a not-yet-saved draft row (CreateChitti); 'deactivate'
+   * and 'activate' toggle a saved member's status — non-destructive, they
+   * keep their payment/win history either way.
    */
-  action?: 'remove' | 'deactivate'
+  action?: 'remove' | 'deactivate' | 'activate'
+  /** Current cycle's payment for this member. Pass alongside `onMarkPaid`/`onMarkPending` to show the inline payment toggle; omit where payments don't apply (drafts, no active cycle). */
+  payment?: Payment
+  onMarkPaid?: (memberId: string) => void
+  onMarkPending?: (memberId: string) => void
 }
 
-export function MemberCard({ member, editable = false, onRemove, action = 'remove' }: MemberCardProps) {
+export function MemberCard({
+  member,
+  editable = false,
+  onRemove,
+  action = 'remove',
+  payment,
+  onMarkPaid,
+  onMarkPending,
+}: MemberCardProps) {
   const removed = member.status === 'removed'
-  const ActionIcon = action === 'deactivate' ? UserX : Trash2
-  const actionLabel = action === 'deactivate' ? 'Deactivate' : 'Remove'
+  // A member who's already won a cycle keeps their payment/win history tied
+  // to that result — deactivating them afterwards would let them quietly
+  // drop out of a cycle they already collected on.
+  const blockedByWin = action === 'deactivate' && member.hasWon
+  const ActionIcon = action === 'activate' ? UserCheck : action === 'deactivate' ? UserX : Trash2
+  const actionLabel = action === 'activate' ? 'Activate' : action === 'deactivate' ? 'Deactivate' : 'Remove'
+  const showPaymentToggle = !removed && (onMarkPaid || onMarkPending)
+  const paymentStatus = payment?.status ?? 'pending'
+
   return (
-    <div
-      className={`flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-soft dark:bg-ink-900 dark:shadow-none ${
-        removed ? 'opacity-50' : 'border-ink-100 dark:border-ink-800'
-      }`}
-    >
+    <div className="flex items-start gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-soft dark:border-ink-800 dark:bg-ink-900 dark:shadow-none">
       <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ink-100 text-ink-500 dark:bg-ink-800 dark:text-ink-400">
         <User className="size-5" />
       </div>
-      <div className="min-w-0 flex-1">
+
+      <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch">
         <p className="truncate font-bold text-ink-900 dark:text-ink-50">{member.name}</p>
-        {member.phone && (
-          <p className="flex items-center gap-1 text-sm text-ink-500 dark:text-ink-400">
-            <Phone className="size-3.5" />
-            {maskPhone(member.phone)}
-          </p>
+        {member.hasWon && (
+          <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-500 dark:bg-warning-500/10 dark:text-warning-400">
+            <Trophy className="size-3" />
+            Cycle {member.wonCycle}
+          </span>
         )}
       </div>
+
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {member.hasWon && (
-          <Badge tone="warning" icon={<Trophy className="size-3.5" />}>
-            Won Cycle {member.wonCycle}
-          </Badge>
+        {showPaymentToggle && (
+          <Button
+            size="sm"
+            variant={paymentStatus === 'paid' ? 'secondary' : 'primary'}
+            onClick={() => (paymentStatus === 'paid' ? onMarkPending?.(member.id) : onMarkPaid?.(member.id))}
+          >
+            {paymentStatus === 'paid' ? 'Mark Pending' : 'Mark as Paid'}
+          </Button>
         )}
-        {removed && <Badge tone="neutral">Inactive</Badge>}
-        {editable && !removed && onRemove && (
+        {editable && onRemove && action === 'remove' && (
           <button
             onClick={() => onRemove(member)}
             aria-label={`${actionLabel} ${member.name}`}

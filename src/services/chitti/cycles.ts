@@ -1,4 +1,4 @@
-import { onSnapshot, orderBy, query } from 'firebase/firestore'
+import { getDoc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import type { Cycle } from '@/types'
 import { cycleDoc, cyclesCol } from '@/services/firebase/paths'
 
@@ -26,4 +26,21 @@ export function subscribeToCycle(
     (snap) => onData(snap.exists() ? snap.data() : null),
     (err) => onError?.(err as Error),
   )
+}
+
+/**
+ * Reschedules a not-yet-completed cycle's auction date/payment deadline.
+ * Refused once the cycle is completed — its payout and winner are already
+ * locked in by then, so the schedule that produced them shouldn't move.
+ */
+export async function updateCycleSchedule(
+  chittiId: string,
+  cycleId: string,
+  updates: { auctionAt: string; paymentDeadline: string },
+): Promise<void> {
+  const snap = await getDoc(cycleDoc(chittiId, cycleId))
+  const cycle = snap.data()
+  if (!cycle) throw new Error('Cycle not found')
+  if (cycle.status === 'completed') throw new Error('Cannot edit a completed cycle')
+  await updateDoc(cycleDoc(chittiId, cycleId), updates)
 }

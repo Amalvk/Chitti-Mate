@@ -27,16 +27,17 @@ export default function App() {
       <Route element={<AdminLayout />}>
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/chittis" element={<ChittiList />} />
+        <Route path="/admin/payments" element={<Payments />} />
         <Route path="/admin/activity" element={<Activity />} />
         <Route path="/admin/more" element={<More />} />
-      </Route>
 
-      <Route element={<AdminChittiLayout />}>
-        <Route path="/admin/chittis/:id" element={<ChittiDetails />} />
-        <Route path="/admin/chittis/:id/members" element={<Members />} />
-        <Route path="/admin/chittis/:id/payments" element={<Payments />} />
-        <Route path="/admin/chittis/:id/cycles" element={<Cycles />} />
-        <Route path="/admin/chittis/:id/lot" element={<Lot />} />
+        <Route element={<AdminChittiLayout />}>
+          <Route path="/admin/chittis/:id" element={<ChittiDetails />} />
+          <Route path="/admin/chittis/:id/members" element={<Members />} />
+          <Route path="/admin/chittis/:id/payments" element={<Navigate to="../members" replace />} />
+          <Route path="/admin/chittis/:id/cycles" element={<Cycles />} />
+          <Route path="/admin/chittis/:id/lot" element={<Lot />} />
+        </Route>
       </Route>
 
       <Route element={<PublicLayout />}>

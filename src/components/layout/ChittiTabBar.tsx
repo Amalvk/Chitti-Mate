@@ -9,7 +9,6 @@ export function ChittiTabBar({ chittiId }: ChittiTabBarProps) {
   const tabs = [
     { to: base, label: 'Overview', end: true },
     { to: `${base}/members`, label: 'Members', end: false },
-    { to: `${base}/payments`, label: 'Payments', end: false },
     { to: `${base}/cycles`, label: 'Cycles', end: false },
   ]
 

@@ -81,7 +81,6 @@ export function Lot() {
           skipSpin={draw.skipSpin}
           closeLabel="Back to Chitti"
           onClose={handleClose}
-          onManagePayments={() => navigate(`/admin/chittis/${chitti.id}/payments`)}
           onManageMembers={() => navigate(`/admin/chittis/${chitti.id}/members`)}
         />
       )}

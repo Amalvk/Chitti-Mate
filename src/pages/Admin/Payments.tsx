@@ -1,52 +1,57 @@
-import toast from 'react-hot-toast'
-import { Wallet } from 'lucide-react'
-import { useChittiOutletContext } from '@/context/chittiOutletContext'
-import { PaymentRow } from '@/components/payments/PaymentRow'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { markPaymentPaid, markPaymentPending } from '@/services/chitti/payments'
-import { cycleIdFor } from '@/services/chitti/lot'
+import { useState } from 'react'
+import { ChevronDown, Receipt } from 'lucide-react'
+import { useChittis } from '@/hooks/useChitti'
+import { ChittiPaymentMatrix } from '@/components/payments/ChittiPaymentMatrix'
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/Skeleton'
 
 export function Payments() {
-  const { chitti, members, payments, currentCycle } = useChittiOutletContext()
-  const activeMembers = members.filter((m) => m.status === 'active')
-  const paymentByMember = new Map(payments.map((p) => [p.memberId, p]))
-  const cycleId = cycleIdFor(chitti.currentCycle)
-
-  async function handleMarkPaid(memberId: string) {
-    await markPaymentPaid(chitti.id, cycleId, memberId)
-    toast.success('Payment marked as paid')
-  }
-
-  async function handleMarkPending(memberId: string) {
-    await markPaymentPending(chitti.id, cycleId, memberId)
-  }
-
-  if (!currentCycle) {
-    return (
-      <EmptyState icon={<Wallet className="size-6" />} title="No active cycle" description="Payments will appear once a cycle starts." />
-    )
-  }
+  const { chittis, loading, error } = useChittis()
+  const [openId, setOpenId] = useState<string | null>(null)
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-ink-900 dark:text-ink-50">Cycle {chitti.currentCycle} Payments</h2>
-      </div>
+    <div className="flex flex-col gap-5">
+      <h1 className="text-2xl font-extrabold tracking-tight text-ink-900 dark:text-ink-50">Payments</h1>
 
-      {activeMembers.length === 0 ? (
-        <EmptyState icon={<Wallet className="size-6" />} title="No members" description="Add members first." />
+      {loading ? (
+        <SkeletonList count={3} />
+      ) : error ? (
+        <ErrorState description={error} onRetry={() => window.location.reload()} />
+      ) : chittis.length === 0 ? (
+        <EmptyState
+          icon={<Receipt className="size-6" />}
+          title="No chittis yet"
+          description="Payment history will appear here once you create a chitti."
+        />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {activeMembers.map((member) => (
-            <PaymentRow
-              key={member.id}
-              member={member}
-              payment={paymentByMember.get(member.id)}
-              editable
-              onMarkPaid={handleMarkPaid}
-              onMarkPending={handleMarkPending}
-            />
-          ))}
+        <div className="flex flex-col gap-3">
+          {chittis.map((chitti) => {
+            const open = openId === chitti.id
+            return (
+              <Card key={chitti.id} padded={false} className="overflow-hidden">
+                <button
+                  onClick={() => setOpenId(open ? null : chitti.id)}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-ink-50 dark:hover:bg-ink-800"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-ink-900 dark:text-ink-50">{chitti.name}</p>
+                    <p className="text-xs text-ink-400 dark:text-ink-500">
+                      Cycle {chitti.currentCycle} of {chitti.totalCycles}
+                    </p>
+                  </div>
+                  {chitti.status === 'completed' && <Badge tone="success">Completed</Badge>}
+                  <ChevronDown className={`size-4 shrink-0 text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+                {open && (
+                  <div className="border-t border-ink-100 px-5 py-4 dark:border-ink-800">
+                    <ChittiPaymentMatrix chittiId={chitti.id} />
+                  </div>
+                )}
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

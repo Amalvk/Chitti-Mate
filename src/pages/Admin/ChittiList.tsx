@@ -38,7 +38,7 @@ export function ChittiList() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {chittis.map((chitti) => (
-            <ChittiCard key={chitti.id} chitti={chitti} />
+            <ChittiCard key={chitti.id} chitti={chitti} deletable />
           ))}
         </div>
       )}

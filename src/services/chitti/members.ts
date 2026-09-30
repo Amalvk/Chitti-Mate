@@ -35,6 +35,11 @@ export async function deactivateMember(chittiId: string, memberId: string): Prom
   await updateDoc(memberDoc(chittiId, memberId), { status: 'removed' })
 }
 
+/** Reverses `deactivateMember` — the member becomes eligible for future cycles again. */
+export async function reactivateMember(chittiId: string, memberId: string): Promise<void> {
+  await updateDoc(memberDoc(chittiId, memberId), { status: 'active' })
+}
+
 export async function markMemberAsWinner(
   chittiId: string,
   memberId: string,

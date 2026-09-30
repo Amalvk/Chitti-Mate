@@ -27,7 +27,7 @@ export function BottomSheet({ open, onClose, title, children, dismissible = true
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
-            className="safe-bottom relative w-full max-w-lg rounded-t-3xl bg-white p-5 pt-3 sm:rounded-3xl sm:mb-8 dark:bg-ink-900"
+            className="relative w-full max-w-lg rounded-t-3xl bg-white p-8 pt-6 sm:rounded-3xl sm:mb-8 dark:bg-ink-900"
             role="dialog"
             aria-modal="true"
           >

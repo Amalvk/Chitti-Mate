@@ -21,7 +21,7 @@ import { deleteChitti } from '@/services/chitti/chitti'
 // remounting — e.g. the admin dismisses the live draw and navigates back
 // here. Without that, a cycle stuck past-due with no eligible members would
 // force-redirect back to /lot on every single visit, trapping the admin away
-// from Members/Payments (the only place they can actually fix eligibility).
+// from Members (the only place they can actually fix eligibility).
 // A full page reload is an acceptable reset point, same as the guards inside
 // useLotAutoTrigger.
 const autoNavigatedCycles = new Set<string>()
@@ -107,7 +107,7 @@ export function ChittiDetails() {
             <PaymentSummary payments={payments} totalMembers={activeMembers.length} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Link to={`/admin/chittis/${chitti.id}/payments`}>
+            <Link to={`/admin/chittis/${chitti.id}/members`}>
               <Button variant="secondary" fullWidth icon={<Wallet className="size-4" />}>
                 Manage Payments
               </Button>
@@ -149,23 +149,25 @@ export function ChittiDetails() {
         title="Delete this chitti?"
         dismissible={!deleting}
       >
-        <p className="mb-5 text-sm text-ink-500 dark:text-ink-400">
-          This permanently deletes <span className="font-semibold text-ink-700 dark:text-ink-200">{chitti.name}</span>,
-          its members, and its full cycle and payment history. This cannot be undone.
-        </p>
-        <div className="flex gap-3">
-          <Button variant="secondary" fullWidth disabled={deleting} onClick={() => setDeleteSheetOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            fullWidth
-            loading={deleting}
-            icon={<Trash2 className="size-4" />}
-            onClick={() => void handleDelete()}
-          >
-            Delete
-          </Button>
+        <div className="flex flex-col gap-8">
+          <p className="text-sm text-ink-500 dark:text-ink-400">
+            This permanently deletes <span className="font-semibold text-ink-700 dark:text-ink-200">{chitti.name}</span>,
+            its members, and its full cycle and payment history. This cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="secondary" fullWidth disabled={deleting} onClick={() => setDeleteSheetOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              fullWidth
+              loading={deleting}
+              icon={<Trash2 className="size-4" />}
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </Button>
+          </div>
         </div>
       </BottomSheet>
     </div>

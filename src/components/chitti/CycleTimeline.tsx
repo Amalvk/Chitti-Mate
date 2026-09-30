@@ -1,4 +1,4 @@
-import { Check, Circle, Dot, Trophy } from 'lucide-react'
+import { Check, Circle, Dot, Pencil, Trophy } from 'lucide-react'
 import type { Cycle, Member } from '@/types'
 import { formatDateTime } from '@/utils/date'
 
@@ -6,9 +6,11 @@ interface CycleTimelineProps {
   cycles: Cycle[]
   totalCycles: number
   members: Member[]
+  /** Omitted (or the row status is 'completed') hides the edit affordance entirely — a finished cycle's schedule is locked in. */
+  onEdit?: (cycle: Cycle) => void
 }
 
-export function CycleTimeline({ cycles, totalCycles, members }: CycleTimelineProps) {
+export function CycleTimeline({ cycles, totalCycles, members, onEdit }: CycleTimelineProps) {
   const memberById = new Map(members.map((m) => [m.id, m]))
   const knownNumbers = new Set(cycles.map((c) => c.cycleNumber))
   const maxKnown = cycles.reduce((max, c) => Math.max(max, c.cycleNumber), 0)
@@ -34,14 +36,28 @@ export function CycleTimeline({ cycles, totalCycles, members }: CycleTimelinePro
               <p className="flex items-center gap-1 text-sm text-ink-500 dark:text-ink-400">
                 <Trophy className="size-3.5 text-warning-500" />
                 {memberById.get(cycle.winnerId)?.name ?? 'Unknown'}
+                <span className="text-ink-300 dark:text-ink-600">·</span>
+                {formatDateTime(cycle.completedAt ?? cycle.auctionAt)}
               </p>
             ) : cycle.status === 'active' ? (
               <p className="text-sm text-ink-500 dark:text-ink-400">Auction {formatDateTime(cycle.auctionAt)}</p>
             ) : (
-              <p className="text-sm text-ink-500 dark:text-ink-400">Winner selected, pending confirmation</p>
+              <p className="text-sm text-ink-500 dark:text-ink-400">
+                Winner selected {formatDateTime(cycle.auctionAt)} · pending confirmation
+              </p>
             )}
           </div>
           <StatusLabel status={cycle.status} />
+          {onEdit && cycle.status !== 'completed' && (
+            <button
+              onClick={() => onEdit(cycle)}
+              aria-label={`Edit Cycle ${cycle.cycleNumber} schedule`}
+              title="Edit schedule"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-400 hover:bg-ink-100 hover:text-ink-700 dark:text-ink-500 dark:hover:bg-ink-800 dark:hover:text-ink-200"
+            >
+              <Pencil className="size-4" />
+            </button>
+          )}
         </li>
       ))}
       {placeholders.map((p) => (

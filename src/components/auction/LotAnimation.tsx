@@ -72,12 +72,11 @@ interface LotAnimationProps {
   closeLabel?: string
   onClose: () => void
   /**
-   * Admin-only escape hatches shown on the "no eligible members" dead end —
-   * omitted for the public viewer, who can't act on either. Navigating away
-   * and back re-triggers the lot automatically (a fresh mount re-attempts
-   * `prepareLot`), so these don't need their own "retry" affordance.
+   * Admin-only escape hatch shown on the "no eligible members" dead end —
+   * omitted for the public viewer, who can't act on it. Navigating away and
+   * back re-triggers the lot automatically (a fresh mount re-attempts
+   * `prepareLot`), so this doesn't need its own "retry" affordance.
    */
-  onManagePayments?: () => void
   onManageMembers?: () => void
 }
 
@@ -91,7 +90,6 @@ export function LotAnimation({
   skipSpin = false,
   closeLabel = 'Continue',
   onClose,
-  onManagePayments,
   onManageMembers,
 }: LotAnimationProps) {
   const [phase, setPhase] = useState<Phase>('preparing')
@@ -307,18 +305,11 @@ export function LotAnimation({
                 No eligible members. All active members either have pending payments or have
                 already won a previous cycle.
               </p>
-              {(onManagePayments || onManageMembers) && (
+              {onManageMembers && (
                 <div className="mt-1 flex flex-col gap-2 sm:flex-row">
-                  {onManagePayments && (
-                    <Button variant="secondary" onClick={onManagePayments}>
-                      Manage Payments
-                    </Button>
-                  )}
-                  {onManageMembers && (
-                    <Button variant="secondary" onClick={onManageMembers}>
-                      Manage Members
-                    </Button>
-                  )}
+                  <Button variant="secondary" onClick={onManageMembers}>
+                    Manage Members
+                  </Button>
                 </div>
               )}
               <Button variant="secondary" onClick={onClose} className="mt-1">

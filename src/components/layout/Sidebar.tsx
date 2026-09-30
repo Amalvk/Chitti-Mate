@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, LayoutGrid, MoreHorizontal, Wallet } from 'lucide-react'
+import { Activity, LayoutGrid, MoreHorizontal, Receipt, Wallet } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const items = [
   { to: '/admin', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/admin/chittis', label: 'Chittis', icon: Wallet, end: false },
+  { to: '/admin/payments', label: 'Payments', icon: Receipt, end: false },
   { to: '/admin/activity', label: 'Activity', icon: Activity, end: false },
   { to: '/admin/more', label: 'Settings', icon: MoreHorizontal, end: false },
 ]
