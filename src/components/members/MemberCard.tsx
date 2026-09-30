@@ -28,10 +28,6 @@ export function MemberCard({
   onMarkPending,
 }: MemberCardProps) {
   const removed = member.status === 'removed'
-  // A member who's already won a cycle keeps their payment/win history tied
-  // to that result — deactivating them afterwards would let them quietly
-  // drop out of a cycle they already collected on.
-  const blockedByWin = action === 'deactivate' && member.hasWon
   const ActionIcon = action === 'activate' ? UserCheck : action === 'deactivate' ? UserX : Trash2
   const actionLabel = action === 'activate' ? 'Activate' : action === 'deactivate' ? 'Deactivate' : 'Remove'
   const showPaymentToggle = !removed && (onMarkPaid || onMarkPending)

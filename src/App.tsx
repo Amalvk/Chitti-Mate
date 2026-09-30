@@ -13,6 +13,9 @@ import { Cycles } from '@/pages/Admin/Cycles'
 import { Lot } from '@/pages/Admin/Lot'
 import { Activity } from '@/pages/Admin/Activity'
 import { More } from '@/pages/Admin/More'
+import { TreasureList } from '@/pages/Admin/TreasureList'
+import { CreateTreasureGroup } from '@/pages/Admin/CreateTreasureGroup'
+import { TreasureGroupDetails } from '@/pages/Admin/TreasureGroupDetails'
 import { PublicChitti } from '@/pages/Chitti/PublicChitti'
 import { PublicHistory } from '@/pages/Chitti/PublicHistory'
 import { NotFound } from '@/pages/NotFound'
@@ -23,11 +26,14 @@ export default function App() {
       <Route path="/" element={<Landing />} />
 
       <Route path="/admin/chittis/new" element={<CreateChitti />} />
+      <Route path="/admin/treasure/new" element={<CreateTreasureGroup />} />
 
       <Route element={<AdminLayout />}>
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/chittis" element={<ChittiList />} />
         <Route path="/admin/payments" element={<Payments />} />
+        <Route path="/admin/treasure" element={<TreasureList />} />
+        <Route path="/admin/treasure/:id" element={<TreasureGroupDetails />} />
         <Route path="/admin/activity" element={<Activity />} />
         <Route path="/admin/more" element={<More />} />
 

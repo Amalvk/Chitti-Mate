@@ -2,6 +2,7 @@ export type * from './chitti'
 export type * from './member'
 export type * from './cycle'
 export type * from './payment'
+export type * from './treasure'
 
 export interface EligibilityResult {
   member: import('./member').Member
